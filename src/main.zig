@@ -1,8 +1,7 @@
 const std = @import("std");
-const go = @import("GenericObject.zig");
-const GenericObjectResult = go.GenericObjectResult;
-const GenericResultList = go.AutoTable;
-const GenericResultProperty = go.ResultProperty;
+const at = @import("AutoTablez");
+const AutoTable = at.AutoTable;
+const ResultProperty = at.ResultProperty;
 const Allocator = std.mem.Allocator;
 
 pub const Person = struct {
@@ -10,8 +9,8 @@ pub const Person = struct {
     age: u32,
     height: f32,
 
-    pub fn resultProperties(self: *const @This(), allocator: Allocator) ![]const GenericResultProperty {
-        const properties = try allocator.alloc(GenericResultProperty, 3);
+    pub fn resultProperties(self: *const @This(), allocator: Allocator) ![]const ResultProperty {
+        const properties = try allocator.alloc(ResultProperty, 3);
 
         properties[0] = .{
             .name = "Name",
@@ -45,7 +44,7 @@ pub fn main() !void {
     };
 
     // Create and populate result list
-    var result_list = try GenericResultList(Person).init(allocator, people);
+    var result_list = try AutoTable(Person).init(allocator, people);
     defer result_list.deinit();
 
     // Format and print
