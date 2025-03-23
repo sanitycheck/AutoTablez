@@ -28,7 +28,11 @@ Charlie   25   pending
 - **Zero Allocations** (optional) – Use fixed buffers for embedded systems  
 
 ## Installation 📦  
-Add as a Zig module in your `build.zig.zon`:  
+Run the following fetch command
+```
+zig fetch --save git+https://github.com/sanitycheck/AutoTablez
+```
+Or manually add the Zig module in your `build.zig.zon`:  
 ```zig
 .dependencies = .{
     .AutoTablez = .{
@@ -39,8 +43,13 @@ Add as a Zig module in your `build.zig.zon`:
 ```
 
 ## Usage 🚀  
-
-### 1. Define Your Struct  
+### 1. Import the Module
+```zig
+const at = @import("AutoTablez");
+const AutoTable = at.AutoTable;
+const ResultProperty = at.ResultProperty;
+```
+### 2. Define Your Struct  
 ```zig
 const User = struct {
     name: []const u8,
@@ -57,7 +66,7 @@ const User = struct {
 };
 ```
 
-### 2. Create a Result List  
+### 3. Create a Result List  
 ```zig
 const users = &.{
     User{ .name = "Alice", .age = 28, .status = "active" },
@@ -67,7 +76,7 @@ var userList = try AutoTable(User).init(allocator, users);
 defer userList.deinit();
 ```
 
-### 3. Print the Table  
+### 4. Print the Table  
 ```zig
 const table = try userList.toString();
 std.debug.print("\n{s}\n", .{table});
