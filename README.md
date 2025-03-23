@@ -41,7 +41,16 @@ Or manually add the Zig module in your `build.zig.zon`:
     },
 },
 ```
+then update your build.zig to add AutoTablez dependency to the root_module.
+```zig
+    const at_dep = b.dependency("AutoTablez", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    ...
 
+    exe.root_module.addImport("AutoTablez", at_dep.module("AutoTablez"));
+```
 ## Usage 🚀  
 ### 1. Import the Module
 ```zig
