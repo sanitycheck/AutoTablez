@@ -6,20 +6,6 @@ pub const ResultProperty = struct {
     value: []const u8,
 };
 
-// pub const GenericObjectResult = struct {
-//     result: *anyopaque,
-
-//     pub fn resultProperties(self: *const @This(), allocator: Allocator) ![]const GenericResultProperty {
-//         const addr = @intFromPtr(self.result);
-//         const name_str = try std.fmt.allocPrint(allocator, "{x}", .{addr});
-//         const value_str = try std.fmt.allocPrint(allocator, "{x}", .{addr});
-//         const properties = try allocator.alloc(GenericResultProperty, 2);
-//         properties[0] = .{ .name = "Name", .value = name_str };
-//         properties[1] = .{ .name = "Value", .value = value_str };
-//         return properties;
-//     }
-// };
-
 pub fn AutoTable(comptime T: type) type {
     return struct {
         resultList: std.ArrayList(T),
