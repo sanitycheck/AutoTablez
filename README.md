@@ -4,11 +4,21 @@
 Format structs into clean, aligned text tables with minimal effort using a dynamic dispatch interface. Ideal for CLI tools, debug output, or presenting structured data.
 
 ```zig
-const users = &.{ user1, user2, user3 };
-const userList = try AutoTable(User).init(allocator, users);
+var userList = try AutoTablez.init(allocator);
 defer userList.deinit();
+
+var user1 = User.init(allocator, "Alice", 30, "Active");
+var user2 = User.init(allocator, "Bob", 25, "Inactive");
+var user3 = User.init(allocator, "Charlie", 35, "Active");
+
+try userList.append(try user1.toResult());
+try userList.append(try user2.toResult());
+try userList.append(try user3.toResult());
+
 const table = try userList.toString();
-std.debug.print("{s}\n", .{table});
+defer allocator.free(table);
+
+std.debug.print("\nUser List:\n\n{s}\n\n", .{table});
 ```
 
 **Example Output:**  

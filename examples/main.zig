@@ -11,8 +11,8 @@ pub fn main() !void {
     try userList.append(try user3.toResult());
 
     const table = try userList.toString();
+    defer std.heap.page_allocator.free(table);
     std.debug.print("\nUser List:\n\n{s}\n\n", .{table});
-    std.heap.page_allocator.free(table);
     std.debug.print("User List printed successfully.\n", .{});
 }
 const std = @import("std");
