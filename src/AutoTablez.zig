@@ -1,9 +1,9 @@
 const AutoTablez = @This();
 
 allocator: std.mem.Allocator,
-resultList: std.ArrayList(Result),
+resultList: std.array_list.Managed(Result),
 pub fn init(allocator: Allocator) !AutoTablez {
-    const list = std.ArrayList(Result).init(allocator);
+    const list = std.array_list.Managed(Result).init(allocator);
     return AutoTablez{
         .resultList = list,
         .allocator = allocator,
@@ -41,7 +41,7 @@ pub fn toString(self: *const AutoTablez) ![]const u8 {
             max_column_widths[i] = @max(max_column_widths[i], prop.value.len);
         }
     }
-    var buffer = std.ArrayList(u8).init(self.allocator);
+    var buffer = std.array_list.Managed(u8).init(self.allocator);
     defer buffer.deinit();
     const writer = buffer.writer();
     // Write headers (fixed)
