@@ -1,28 +1,59 @@
 const std = @import("std");
 
 const Allocator = std.mem.Allocator;
-const result_property = @import("ResultProperty.zig");
-const result_object = @import("Result.zig");
+const ResultModule = @import("Result.zig");
 
-pub const ResultProperty = result_property.ResultProperty;
-pub const ResultObject = result_object.ResultObject;
+pub const ResultProperty = ResultModule.ResultProperty;
+pub const ResultVTable = ResultModule.ResultVTable;
+pub const Result = ResultModule.Result;
+pub const ResultObject = ResultModule.ResultObject;
+
+pub const AutoTablez = struct {
+    allocator: Allocator,
+    rows: std.ArrayList(Result),
+
+    pub fn init(allocator: Allocator) !AutoTablez {
+        return .{
+            .allocator = allocator,
+            .rows = std.ArrayList(Result).empty,
+        };
+    }
+
+    pub fn deinit(self: *AutoTablez) void {
+        self.rows.deinit(self.allocator);
+    }
+
+    pub fn addRange(self: *AutoTablez, range: []const Result) !void {
+        if (range.len == 0) return;
+        try self.rows.ensureTotalCapacity(self.allocator, self.rows.items.len + range.len);
+        try self.rows.appendSlice(self.allocator, range);
+    }
+
+    pub fn append(self: *AutoTablez, item: Result) !void {
+        try self.rows.append(self.allocator, item);
+    }
+
+    pub fn toString(self: *AutoTablez) ![]const u8 {
+        return formatResults(self.allocator, self.rows.items);
+    }
+};
 
 pub fn AutoTable(comptime T: type) type {
     return struct {
         const Self = @This();
 
         allocator: Allocator,
-        rows: std.ArrayList(ResultObject),
+        rows: std.ArrayList(Result),
 
         pub fn init(allocator: Allocator, items: []const T) !Self {
-            var rows = std.ArrayList(ResultObject).empty;
+            var rows = std.ArrayList(Result).empty;
             errdefer rows.deinit(allocator);
 
             if (items.len != 0) {
-                try rows.ensureTotalCapacityPrecise(allocator, items.len);
-            }
-            for (items) |*item| {
-                try rows.append(allocator, item.resultObject());
+                try rows.ensureTotalCapacity(allocator, items.len);
+                for (items) |*item| {
+                    try rows.append(allocator, item.resultObject());
+                }
             }
 
             return .{
@@ -48,103 +79,79 @@ pub fn AutoTable(comptime T: type) type {
         }
 
         pub fn toString(self: *Self) ![]const u8 {
-            if (self.rows.items.len == 0) {
-                return "";
-            }
-
-            const row_count = self.rows.items.len;
-
-            var row_props = try self.allocator.alloc([]ResultProperty, row_count);
-            var filled_rows: usize = 0;
-            var max_widths: []usize = undefined;
-            var has_widths = false;
-            var column_count: usize = 0;
-
-            defer {
-                if (has_widths) {
-                    self.allocator.free(max_widths);
-                }
-                var idx: usize = 0;
-                while (idx < filled_rows) : (idx += 1) {
-                    result_property.destroySlice(self.allocator, row_props[idx]);
-                }
-                self.allocator.free(row_props);
-            }
-
-            for (self.rows.items) |row| {
-                const props = try row.resultProperties(self.allocator);
-                row_props[filled_rows] = props;
-                filled_rows += 1;
-
-                if (!has_widths) {
-                    column_count = props.len;
-                    if (column_count == 0) {
-                        return "";
-                    }
-                    max_widths = try self.allocator.alloc(usize, column_count);
-                    has_widths = true;
-                    for (props, 0..) |prop, col_idx| {
-                        var width = prop.name.len;
-                        width = @max(width, prop.value.len);
-                        max_widths[col_idx] = width;
-                    }
-                } else {
-                    if (props.len != column_count) {
-                        return error.MismatchedColumnCount;
-                    }
-                    for (props, 0..) |prop, col_idx| {
-                        max_widths[col_idx] = @max(max_widths[col_idx], prop.name.len);
-                        max_widths[col_idx] = @max(max_widths[col_idx], prop.value.len);
-                    }
-                }
-            }
-
-            var buffer = std.ArrayList(u8).empty;
-            defer buffer.deinit(self.allocator);
-            const writer = buffer.writer(self.allocator);
-
-            const headers = row_props[0];
-
-            for (headers, 0..) |prop, col_idx| {
-                try writer.writeAll(prop.name);
-                const padding = max_widths[col_idx] - prop.name.len;
-                if (padding > 0) {
-                    try writer.writeByteNTimes(' ', padding);
-                }
-                if (col_idx + 1 < column_count) {
-                    try writer.writeAll("  ");
-                }
-            }
-            try writer.writeByte('\n');
-
-            for (headers, 0..) |prop, col_idx| {
-                const header_width = prop.name.len;
-                try writer.writeByteNTimes('-', header_width);
-                const padding = max_widths[col_idx] - header_width;
-                if (padding > 0) {
-                    try writer.writeByteNTimes(' ', padding);
-                }
-                if (col_idx + 1 < column_count) {
-                    try writer.writeAll("  ");
-                }
-            }
-            try writer.writeByte('\n');
-
-            for (row_props) |props| {
-                for (props, 0..) |prop, col_idx| {
-                    try writer.writeAll(prop.value);
-                    const padding = max_widths[col_idx] - prop.value.len;
-                    if (padding > 0) {
-                        try writer.writeByteNTimes(' ', padding);
-                    }
-                    if (col_idx + 1 < column_count) {
-                        try writer.writeAll("  ");
-                    }
-                }
-                try writer.writeByte('\n');
-            }
-
-            return buffer.toOwnedSlice(self.allocator);
+            return formatResults(self.allocator, self.rows.items);
         }
     };
+}
+
+fn formatResults(allocator: Allocator, rows: []const Result) ![]const u8 {
+    if (rows.len == 0) {
+        return "";
+    }
+
+    const first = rows[0];
+    const first_properties = try first.resultProperties();
+    if (first_properties.len == 0) {
+        return "";
+    }
+
+    const column_count = first_properties.len;
+    var max_widths = try allocator.alloc(usize, column_count);
+    defer allocator.free(max_widths);
+
+    for (first_properties, 0..) |prop, idx| {
+        max_widths[idx] = prop.name.len;
+    }
+
+    for (rows) |result| {
+        const props = try result.resultProperties();
+        for (props, 0..) |prop, idx| {
+            max_widths[idx] = @max(max_widths[idx], prop.value.len);
+        }
+    }
+
+    var buffer = std.ArrayList(u8).empty;
+    errdefer buffer.deinit(allocator);
+    const writer = buffer.writer(allocator);
+
+    for (first_properties, 0..) |prop, idx| {
+        try writer.writeAll(prop.name);
+        const padding = max_widths[idx] - prop.name.len;
+        if (padding > 0) {
+            try writer.writeByteNTimes(' ', padding);
+        }
+        if (idx + 1 < column_count) {
+            try writer.writeAll("  ");
+        }
+    }
+    try writer.writeByte('\n');
+
+    for (first_properties, 0..) |prop, idx| {
+        try writer.writeByteNTimes('-', prop.name.len);
+        const padding = max_widths[idx] - prop.name.len;
+        if (padding > 0) {
+            try writer.writeByteNTimes(' ', padding);
+        }
+        if (idx + 1 < column_count) {
+            try writer.writeAll("  ");
+        }
+    }
+    try writer.writeByte('\n');
+
+    for (rows) |result| {
+        const props = try result.resultProperties();
+        for (props, 0..) |prop, idx| {
+            try writer.writeAll(prop.value);
+            const padding = max_widths[idx] - prop.value.len;
+            if (padding > 0) {
+                try writer.writeByteNTimes(' ', padding);
+            }
+            if (idx + 1 < column_count) {
+                try writer.writeAll("  ");
+            }
+        }
+        try writer.writeByte('\n');
+    }
+
+    return buffer.toOwnedSlice(allocator);
 }

@@ -2,17 +2,27 @@ const std = @import("std");
 const at = @import("AutoTablez");
 
 const Allocator = std.mem.Allocator;
+const Result = at.Result;
 const ResultProperty = at.ResultProperty;
-const ResultObject = at.ResultObject;
 
 pub const Person = struct {
     name: []const u8,
     age: u32,
     height: f32,
+    allocator: Allocator,
 
-    pub fn resultObject(self: *const Person) ResultObject {
+    pub fn init(allocator: Allocator, name: []const u8, age: u32, height: f32) Person {
         return .{
-            .ptr = self,
+            .name = name,
+            .age = age,
+            .height = height,
+            .allocator = allocator,
+        };
+    }
+
+    pub fn resultObject(self: *const Person) Result {
+        return .{
+            .ptr = @constCast(self),
             .vtable = &.{
                 .resultProperties = resultProperties,
             },
@@ -20,19 +30,13 @@ pub const Person = struct {
     }
 };
 
-fn resultProperties(ctx: *const anyopaque, allocator: Allocator) ![]ResultProperty {
-    const self: *const Person = @ptrCast(@alignCast(ctx));
+fn resultProperties(ctx: *anyopaque) anyerror![]const ResultProperty {
+    const self: *Person = @ptrCast(@alignCast(ctx));
 
-    const age_value = try std.fmt.allocPrint(allocator, "{}", .{self.age});
-    errdefer allocator.free(age_value);
-
-    const height_value = try std.fmt.allocPrint(allocator, "{d:.2}", .{self.height});
-    errdefer allocator.free(height_value);
-
-    const props = try allocator.alloc(ResultProperty, 3);
+    const props = try self.allocator.alloc(ResultProperty, 3);
     props[0] = .{ .name = "Name", .value = self.name };
-    props[1] = .{ .name = "Age", .value = age_value, .owns_value = true };
-    props[2] = .{ .name = "Height", .value = height_value, .owns_value = true };
+    props[1] = .{ .name = "Age", .value = try std.fmt.allocPrint(self.allocator, "{}", .{self.age}) };
+    props[2] = .{ .name = "Height", .value = try std.fmt.allocPrint(self.allocator, "{d:.2}", .{self.height}) };
 
     return props;
 }
