@@ -1,20 +1,21 @@
+const std = @import("std");
+const at = @import("AutoTablez");
+const Person = @import("Person.zig").Person;
 
 pub fn main() !void {
-    var userList = try AutoTablez.init(std.heap.page_allocator);
-    defer userList.deinit();
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
 
-    var user1 = User.init(std.heap.page_allocator, "Alice", 30, "Active");
-    var user2 = User.init(std.heap.page_allocator, "Bob", 25, "Inactive");
-    var user3 = User.init(std.heap.page_allocator, "Charlie", 35, "Active");
-    try userList.append(try user1.toResult());
-    try userList.append(try user2.toResult());
-    try userList.append(try user3.toResult());
+    const people = [_]Person{
+        .{ .name = "Alice", .age = 30, .height = 1.68 },
+        .{ .name = "Bob", .age = 25, .height = 1.82 },
+        .{ .name = "Charlie", .age = 35, .height = 1.75 },
+    };
 
-    const table = try userList.toString();
-    defer std.heap.page_allocator.free(table);
-    std.debug.print("\nUser List:\n\n{s}\n\n", .{table});
-    std.debug.print("User List printed successfully.\n", .{});
+    var table = try at.AutoTable(Person).init(allocator, people[0..]);
+    defer table.deinit();
+
+    const output = try table.toString();
+    std.debug.print("\n{s}\n", .{output});
 }
-const std = @import("std");
-const User = @import("User.zig");
-const AutoTablez = @import("AutoTablez");

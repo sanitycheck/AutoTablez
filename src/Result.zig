@@ -1,21 +1,17 @@
-const Result = @This();
+const std = @import("std");
 
-ptr: *anyopaque,
-vtable: *const ResultVTable,
+const Allocator = std.mem.Allocator;
+const result_property = @import("ResultProperty.zig");
 
-pub const ResultVTable = struct {
-    resultProperties: *const fn (self: *anyopaque) ResultError![]ResultProperty,
-};
+pub const ResultObject = struct {
+    ptr: *const anyopaque,
+    vtable: *const VTable,
 
-pub fn resultProperties(self: *const Result) ResultError![]ResultProperty {
-    return self.vtable.resultProperties(self.ptr);
-}
+    pub const VTable = struct {
+        resultProperties: *const fn (*const anyopaque, Allocator) anyerror![]result_property.ResultProperty,
+    };
 
-pub const ResultProperty = struct {
-    name: []const u8,
-    value: []const u8,
-};
-
-pub const ResultError = error{
-    GetResultPropertiesFailed,
+    pub fn resultProperties(self: ResultObject, allocator: Allocator) ![]result_property.ResultProperty {
+        return self.vtable.resultProperties(self.ptr, allocator);
+    }
 };
