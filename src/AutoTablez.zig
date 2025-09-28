@@ -24,7 +24,7 @@ pub fn append(table: *AutoTablez, item: Result) !void {
     try table.append(item);
 }
 
-pub fn toString(table: *AutoTablez) ![]const u8 {
+pub fn toString(table: *AutoTablez) ![]u8 {
     return table.toString();
 }
 
@@ -53,7 +53,7 @@ pub const AutoTablez = struct {
         try self.rows.append(self.allocator, item);
     }
 
-    pub fn toString(self: *AutoTablez) ![]const u8 {
+    pub fn toString(self: *AutoTablez) ![]u8 {
         return formatResults(self.allocator, self.rows.items);
     }
 };
@@ -98,21 +98,21 @@ pub fn AutoTable(comptime T: type) type {
             }
         }
 
-        pub fn toString(self: *Self) ![]const u8 {
+        pub fn toString(self: *Self) ![]u8 {
             return formatResults(self.allocator, self.rows.items);
         }
     };
 }
 
-fn formatResults(allocator: Allocator, rows: []const Result) ![]const u8 {
+fn formatResults(allocator: Allocator, rows: []const Result) ![]u8 {
     if (rows.len == 0) {
-        return "";
+        return allocator.alloc(u8, 0);
     }
 
     const first = rows[0];
     const first_properties = try first.resultProperties();
     if (first_properties.len == 0) {
-        return "";
+        return allocator.alloc(u8, 0);
     }
 
     const column_count = first_properties.len;
