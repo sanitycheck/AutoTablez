@@ -8,6 +8,26 @@ pub const ResultVTable = ResultModule.ResultVTable;
 pub const Result = ResultModule.Result;
 pub const ResultObject = ResultModule.ResultObject;
 
+pub fn init(allocator: Allocator) !AutoTablez {
+    return AutoTablez.init(allocator);
+}
+
+pub fn deinit(table: *AutoTablez) void {
+    table.deinit();
+}
+
+pub fn addRange(table: *AutoTablez, range: []const Result) !void {
+    try table.addRange(range);
+}
+
+pub fn append(table: *AutoTablez, item: Result) !void {
+    try table.append(item);
+}
+
+pub fn toString(table: *AutoTablez) ![]const u8 {
+    return table.toString();
+}
+
 pub const AutoTablez = struct {
     allocator: Allocator,
     rows: std.ArrayList(Result),
